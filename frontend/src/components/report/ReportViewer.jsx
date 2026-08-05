@@ -86,44 +86,44 @@ export default function ReportViewer({ incidentId, onClose }) {
           ) : report ? (
             <>
               {/* Export Toolbar Header */}
-              <div className="p-4 bg-slate-900/40 border border-background-border/50 rounded-2xl flex flex-wrap items-center justify-between gap-4">
-                <span className="text-xs font-semibold text-slate-400">Export Report Options:</span>
+              <div className="p-4 bg-slate-900/40 border border-background-border/50 rounded-2xl flex flex-wrap items-center justify-between gap-4 shrink-0">
+                <span className="text-xs font-semibold text-background-muted">Export Report Options:</span>
                 <ExportMenu incidentId={incidentId} report={report} />
               </div>
-
+ 
               {/* Summary */}
               <ViewerSection icon={<Brain className="w-4 h-4 text-primary" />} title="Executive Summary" color="primary">
-                <p className="text-sm text-slate-200 leading-relaxed font-medium">{report.incident_summary}</p>
+                <p className="text-sm text-background-text leading-relaxed font-medium">{report.incident_summary}</p>
               </ViewerSection>
-
+ 
               {/* Overview Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
                 <MetricBox label="Error Type" value={report.error_type} />
                 <MetricBox label="Affected Component" value={report.affected_component} />
                 <MetricBox label="Est. Fix Time" value={report.estimated_fix_time} />
                 <MetricBox label="AI Confidence" value={report.confidence} />
               </div>
-
+ 
               {/* Root Cause */}
               <ViewerSection icon={<Target className="w-4 h-4 text-red-400" />} title="Root Cause Analysis" color="red">
-                <p className="text-sm text-slate-300 leading-relaxed">{report.root_cause}</p>
+                <p className="text-sm text-background-muted leading-relaxed">{report.root_cause}</p>
               </ViewerSection>
-
+ 
               {/* Technical Explanation */}
               <ViewerSection icon={<Cpu className="w-4 h-4 text-primary" />} title="Technical Explanation" color="primary">
-                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{report.technical_explanation}</p>
+                <p className="text-sm text-background-muted leading-relaxed whitespace-pre-line">{report.technical_explanation}</p>
               </ViewerSection>
-
+ 
               {/* Business Impact */}
               <ViewerSection icon={<Building2 className="w-4 h-4 text-yellow-400" />} title="Business Impact & Risk" color="yellow">
-                <p className="text-sm text-slate-300 leading-relaxed">{report.business_impact}</p>
+                <p className="text-sm text-background-muted leading-relaxed">{report.business_impact}</p>
               </ViewerSection>
-
+ 
               {/* Resolution Steps */}
               <ViewerSection icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />} title="Actionable Resolution Steps" color="green">
                 <ol className="flex flex-col gap-2.5">
                   {(report.resolution_steps || []).map((step, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm text-slate-300">
+                    <li key={i} className="flex items-start gap-3 text-sm text-background-muted">
                       <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-center mt-0.5">
                         {i + 1}
                       </span>
@@ -132,23 +132,23 @@ export default function ReportViewer({ incidentId, onClose }) {
                   ))}
                 </ol>
               </ViewerSection>
-
+ 
               {/* Preventive Measures */}
               <ViewerSection icon={<ShieldCheck className="w-4 h-4 text-primary" />} title="Recommended Preventive Measures" color="primary">
                 <ul className="flex flex-col gap-2">
                   {(report.preventive_measures || []).map((measure, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-slate-300">
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-background-muted">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
                       <span className="leading-relaxed">{measure}</span>
                     </li>
                   ))}
                 </ul>
               </ViewerSection>
-
+ 
               {/* Keywords */}
               {report.keywords?.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                  <Tag className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <div className="flex flex-wrap items-center gap-2 pt-2 shrink-0">
+                  <Tag className="w-3.5 h-3.5 text-background-muted shrink-0" />
                   {report.keywords.map((kw, i) => (
                     <span key={i} className="px-2.5 py-1 text-xs font-mono-code bg-slate-900 border border-background-border text-slate-300 rounded-lg">
                       {kw}
@@ -175,7 +175,7 @@ function ViewerSection({ icon, title, color, children }) {
   const theme = colors[color] || colors.primary;
 
   return (
-    <div className={`border rounded-2xl overflow-hidden ${theme}`}>
+    <div className={`border rounded-2xl overflow-hidden shrink-0 ${theme}`}>
       <button
         onClick={() => setOpen(!open)}
         className="w-full px-5 py-3 flex items-center justify-between text-left font-bold text-xs uppercase tracking-wider select-none"
@@ -183,7 +183,7 @@ function ViewerSection({ icon, title, color, children }) {
         <span className="flex items-center gap-2">{icon} {title}</span>
         {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
       </button>
-      {open && <div className="px-5 pb-5 pt-1 border-t border-slate-800/50">{children}</div>}
+      {open && <div className="px-5 pb-5 pt-1 border-t border-background-border/40">{children}</div>}
     </div>
   );
 }
