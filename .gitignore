@@ -1,0 +1,44 @@
+# Python Virtual Environments
+backend/.venv/
+.venv/
+venv/
+env/
+
+# Python cache / compiled files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Node Dependencies
+frontend/node_modules/
+node_modules/
+
+# Production builds
+frontend/dist/
+dist/
+
+# Local Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Uploads and Stored Data
+backend/uploads/
+backend/logo_flat.png
+backend/logo_banner_flat.png
+backend/logo_icon_flat.png
+backend/analysis.log
+
+# OS / Editor files
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+Thumbs.db

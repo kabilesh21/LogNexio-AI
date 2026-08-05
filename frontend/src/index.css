@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #faf6f0;
+    color: #1c120c;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Scrollbar Styles for Brown Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #faf6f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dfcbb5;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6e3d1c;
+}
+
+/* Modern Glowing Decorative Background Elements */
+.glow-spot {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(110, 61, 28, 0.08) 0%, rgba(250, 246, 240, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(40px);
+  z-index: 0;
+}
+
+.glow-spot-accent {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(140, 111, 86, 0.06) 0%, rgba(250, 246, 240, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(40px);
+  z-index: 0;
+}
+
+/* Glassmorphism utility card configured for Brown Theme */
+.glass-panel {
+  background: rgba(241, 230, 215, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(140, 111, 86, 0.2);
+}
+
+/* Code layout font */
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
+}
