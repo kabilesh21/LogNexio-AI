@@ -18,7 +18,10 @@ class Settings:
     
     # Upload Settings
     UPLOAD_DIR_NAME: str = os.getenv("UPLOAD_DIR", "uploads")
-    UPLOAD_DIR: Path = BACKEND_DIR / UPLOAD_DIR_NAME
+    if os.getenv("VERCEL") or os.getenv("ENV") == "production":
+        UPLOAD_DIR: Path = Path("/tmp") / UPLOAD_DIR_NAME
+    else:
+        UPLOAD_DIR: Path = BACKEND_DIR / UPLOAD_DIR_NAME
     METADATA_DIR: Path = UPLOAD_DIR / "metadata"
     
     # Validation Constraints
@@ -28,6 +31,11 @@ class Settings:
 
 settings = Settings()
 
-# Ensure directories exist
-settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-settings.METADATA_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure directories exist (wrapped in try-except for read-only serverless environments)
+try:
+    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    settings.METADATA_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    import sys
+    print(f"Skipping local directory creation in read-only filesystem: {e}", file=sys.stderr)
+
