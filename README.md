@@ -4,7 +4,7 @@ LogNexio AI is a state-of-the-art, air-gapped operations dashboard and intellige
 
 ---
 
-The live link : log-nexio-ai.vercel.app
+The live link : https://log-nexio-ai.vercel.app/
 
 ---
 
