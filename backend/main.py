@@ -16,6 +16,7 @@ from routes.ai_routes import router as ai_router
 from routes.dashboard_routes import router as dashboard_router
 from routes.report_routes import router as report_router
 from routes.system_routes import router as system_router
+from routes.auth_routes import router as auth_router
 from utils.logger import get_logger
 
 logger = get_logger("Main")
@@ -53,6 +54,7 @@ app.include_router(ai_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(report_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 # --- CUSTOM ERROR HANDLERS ---
 

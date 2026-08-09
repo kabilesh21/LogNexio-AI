@@ -1,8 +1,8 @@
 import {
-  Terminal, LayoutDashboard, FileText, Cpu, Layers, Play, Activity, Settings as SettingsIcon, Info
+  Terminal, LayoutDashboard, FileText, Cpu, Layers, Play, Activity, Settings as SettingsIcon, Info, LogOut
 } from 'lucide-react';
 
-export default function Navigation({ activeTab = 'dashboard', setActiveTab }) {
+export default function Navigation({ activeTab = 'dashboard', setActiveTab, user, onLogout }) {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4 text-primary" /> },
     { id: 'report-center', label: 'Report Center', icon: <FileText className="w-4 h-4 text-emerald-400" /> },
@@ -98,6 +98,23 @@ export default function Navigation({ activeTab = 'dashboard', setActiveTab }) {
           {indicator.icon}
           <span>{indicator.label}</span>
         </div>
+
+        {user && (
+          <div className="flex items-center gap-3 border-l border-slate-700/50 pl-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-800 bg-[#dfcbb5]/20 border border-[#dfcbb5]/40 px-2.5 py-1.5 rounded-lg">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span>{user.username}</span>
+            </div>
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-bold transition-all cursor-pointer"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Logout</span>
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );

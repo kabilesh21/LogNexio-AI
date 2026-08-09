@@ -62,6 +62,14 @@ class DBAIReport(Base):
     report_data = Column(Text(16777215), nullable=False)  # MEDIUMTEXT in MySQL/TiDB
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class DBUser(Base):
+    __tablename__ = "users"
+    user_id = Column(String(50), primary_key=True, index=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 

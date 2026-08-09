@@ -10,6 +10,7 @@ import ReportCenter from './pages/ReportCenter';
 import Settings from './pages/Settings';
 import About from './pages/About';
 import DemoMode from './pages/DemoMode';
+import LoginRegister from './components/auth/LoginRegister';
 
 import ErrorBoundary from './components/system/ErrorBoundary';
 import { NotificationProvider } from './components/system/NotificationProvider';
@@ -23,6 +24,44 @@ export default function App() {
   const [uploads, setUploads] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  
+  // User Authentication State
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('lognexio_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    localStorage.setItem('lognexio_user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('lognexio_user');
+    localStorage.removeItem('lognexio_uploads');
+    setUploads([]);
+  };
+
+  // Sync log count freshly if backend database is empty (clears stale local storage items)
+  useEffect(() => {
+    const syncWithBackend = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8000');
+        const res = await fetch(`${API_BASE}/api/dashboard/summary`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.total_logs === 0) {
+            localStorage.removeItem('lognexio_uploads');
+            setUploads([]);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync upload cache with backend:', err);
+      }
+    };
+    syncWithBackend();
+  }, [user]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -132,12 +171,16 @@ export default function App() {
     );
   }
 
+  if (!user) {
+    return <LoginRegister onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <ErrorBoundary>
       <NotificationProvider>
         <div className="relative min-h-screen bg-background text-background-text">
           {/* Navigation Header with tab switcher */}
-          <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+          <Navigation activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout} />
 
           {/* Floating Keyboard Shortcut Listener & Guide */}
           <ShortcutGuide setActiveTab={setActiveTab} />
