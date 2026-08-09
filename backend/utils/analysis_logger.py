@@ -2,9 +2,14 @@ import logging
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
+import os
+
 # Resolve directory path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-LOG_FILE_PATH = BACKEND_DIR / "analysis.log"
+if os.getenv("VERCEL") or os.getenv("ENV") == "production":
+    LOG_FILE_PATH = Path("/tmp") / "analysis.log"
+else:
+    LOG_FILE_PATH = BACKEND_DIR / "analysis.log"
 
 # Define log message layout
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s - %(message)s")
