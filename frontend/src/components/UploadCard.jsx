@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { UploadCloud, FileText, CheckCircle2, AlertTriangle, Play, Loader2, RefreshCw } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '' : 'http://localhost:8000');
 
 export default function UploadCard({ onUploadSuccess, onAnalysisComplete }) {
   const [dragActive, setDragActive] = useState(false);
