@@ -74,3 +74,34 @@ def get_system_version():
         "build": "production",
         "phases": ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5", "Phase 6"],
     }
+
+@router.get(
+    "/db-debug",
+    status_code=status.HTTP_200_OK,
+    summary="Get database connection debug trace",
+    description="Diagnostics helper that attempts a database connection and outputs the traceback on failure."
+)
+def get_db_debug():
+    import traceback
+    from config.db import SessionLocal
+    from sqlalchemy import text
+    
+    result = {
+        "status": "unknown",
+        "message": "",
+        "traceback": ""
+    }
+    
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        result["status"] = "success"
+        result["message"] = "Database connection successful!"
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = str(e)
+        result["traceback"] = traceback.format_exc()
+        
+    return result
+
