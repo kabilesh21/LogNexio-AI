@@ -4,6 +4,10 @@ LogNexio AI is a state-of-the-art, air-gapped operations dashboard and intellige
 
 ---
 
+The live link : log-nexio-ai.vercel.app
+
+---
+
 ## 🚀 Key Features
 * **Operations Dashboard**: Real-time visualization of log counts, line rates, critical severity incidents, AI analysis times, and error timelines.
 * **Workspace Sandbox**: Secure local drag-and-drop file ingestion (`.log` / `.txt`), parser statistics, and real-time compliance notes.
