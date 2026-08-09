@@ -1,4 +1,5 @@
 import os
+import sys
 from sqlalchemy import create_engine, Column, String, Integer, Text, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -8,8 +9,8 @@ from config.config import settings
 # Since TiDB Cloud requires SSL/TLS, configure connection args appropriately
 connect_args = {}
 # PyMySQL handles SSL modes: PREFERRED, REQUIRED, VERIFY_CA, VERIFY_IDENTITY
-# TiDB serverless works nicely with "PREFERRED" without specifying a local certificate file.
-if "ssl" in settings.DATABASE_URL.lower() or settings.ENV == "production":
+# Auto-enable SSL for any remote database host (not localhost/127.0.0.1)
+if "127.0.0.1" not in settings.DATABASE_URL.lower() and "localhost" not in settings.DATABASE_URL.lower():
     connect_args = {
         "ssl": {
             "ssl_mode": "PREFERRED"
@@ -63,3 +64,9 @@ class DBAIReport(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+
+# Auto-initialize database tables on import to guarantee existence in serverless environments
+try:
+    init_db()
+except Exception as e:
+    print(f"Database auto-initialization failed: {e}", file=sys.stderr)
