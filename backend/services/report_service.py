@@ -11,32 +11,33 @@ from utils.analysis_logger import get_analysis_logger
 
 logger = get_analysis_logger("ReportService")
 
-REPORTS_DIR: Path = settings.UPLOAD_DIR / "reports"
-
-
 class ReportService:
     """
-    Manages saved AI reports on disk under backend/uploads/reports/.
+    Manages saved AI reports in TiDB database.
     Reads existing JSON reports without re-calling Gemini.
     """
 
     @staticmethod
     def get_all_reports() -> List[ReportSummaryItem]:
         """
-        Retrieves summaries of all saved AI reports ordered newest to oldest.
+        Retrieves summaries of all saved AI reports ordered newest to oldest from TiDB database.
         """
-        if not REPORTS_DIR.exists():
+        from config.db import SessionLocal, DBAIReport
+        db = SessionLocal()
+        try:
+            db_reports = db.query(DBAIReport).order_by(DBAIReport.created_at.desc()).all()
+        except Exception as exc:
+            logger.error(f"Failed to query reports from database: {exc}")
             return []
+        finally:
+            db.close()
 
         summaries = []
-        for file_path in REPORTS_DIR.glob("*.json"):
+        for db_rep in db_reports:
             try:
-                data = json.loads(file_path.read_text(encoding="utf-8"))
-                incident_id = data.get("incident_id", file_path.stem)
-                
-                # File modification date as ISO string
-                mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-                created_at = mtime.isoformat()
+                data = json.loads(db_rep.report_data)
+                incident_id = data.get("incident_id", db_rep.incident_id)
+                created_at = db_rep.created_at.isoformat()
 
                 summary = ReportSummaryItem(
                     incident_id=incident_id,
@@ -49,23 +50,33 @@ class ReportService:
                     estimated_fix_time=data.get("estimated_fix_time", "15-30 minutes"),
                     keywords=data.get("keywords", []),
                 )
-                summaries.append((mtime, summary))
+                summaries.append(summary)
             except Exception as exc:
-                logger.warning(f"Failed to parse report file {file_path}: {exc}")
+                logger.warning(f"Failed to parse report for incident {db_rep.incident_id}: {exc}")
                 continue
-
-        # Sort by creation timestamp descending
-        summaries.sort(key=lambda x: x[0], reverse=True)
-        return [item[1] for item in summaries]
+        return summaries
 
     @staticmethod
     def get_report(incident_id: str) -> AIReport:
         """
-        Retrieves a single AI report by incident_id.
+        Retrieves a single AI report by incident_id from the database.
         Raises 404 if not found.
         """
-        report_path = REPORTS_DIR / f"{incident_id}.json"
-        if not report_path.exists():
+        from config.db import SessionLocal, DBAIReport
+        db = SessionLocal()
+        db_rep = None
+        try:
+            db_rep = db.query(DBAIReport).filter(DBAIReport.incident_id == incident_id).first()
+        except Exception as exc:
+            logger.error(f"Database error querying report {incident_id}: {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error reading report details."
+            )
+        finally:
+            db.close()
+
+        if not db_rep:
             logger.warning(f"Report not found for incident_id: {incident_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -73,36 +84,44 @@ class ReportService:
             )
 
         try:
-            data = json.loads(report_path.read_text(encoding="utf-8"))
+            data = json.loads(db_rep.report_data)
             return AIReport(**data)
         except Exception as exc:
-            logger.error(f"Error reading report {incident_id}: {exc}")
+            logger.error(f"Error reading report {incident_id} from JSON: {exc}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Corrupted report file for incident ID '{incident_id}'."
+                detail=f"Corrupted report data for incident ID '{incident_id}'."
             )
 
     @staticmethod
     def delete_report(incident_id: str) -> bool:
         """
-        Deletes an AI report file from disk.
+        Deletes an AI report from the database.
         """
-        report_path = REPORTS_DIR / f"{incident_id}.json"
-        if not report_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Report file not found for incident ID '{incident_id}'."
-            )
+        from config.db import SessionLocal, DBAIReport
+        db = SessionLocal()
         try:
-            report_path.unlink()
-            logger.info(f"Deleted report file: {incident_id}.json")
+            db_rep = db.query(DBAIReport).filter(DBAIReport.incident_id == incident_id).first()
+            if not db_rep:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Report file not found for incident ID '{incident_id}'."
+                )
+            db.delete(db_rep)
+            db.commit()
+            logger.info(f"Deleted report from database: {incident_id}")
             return True
+        except HTTPException:
+            raise
         except Exception as exc:
-            logger.error(f"Failed to delete report {incident_id}: {exc}")
+            db.rollback()
+            logger.error(f"Failed to delete report {incident_id} from database: {exc}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete report '{incident_id}'."
             )
+        finally:
+            db.close()
 
     @staticmethod
     def search_reports(

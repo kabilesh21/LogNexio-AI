@@ -1,3 +1,8 @@
+import sys
+import os
+# Ensure backend directory is in sys.path for Vercel import resolution
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import uvicorn
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +26,16 @@ app = FastAPI(
     description="Production-ready AI-powered Log Analysis platform.",
     version="6.0.0"
 )
+
+@app.on_event("startup")
+def on_startup():
+    from config.db import init_db
+    logger.info("Initializing database...")
+    try:
+        init_db()
+        logger.info("Database initialized successfully.")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
 
 # CORS Middleware setup to allow communication with Frontend Vite Server
 app.add_middleware(

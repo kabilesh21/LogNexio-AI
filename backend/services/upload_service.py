@@ -55,24 +55,14 @@ class UploadService:
     @classmethod
     def save_uploaded_file(cls, file: UploadFile) -> UploadResponse:
         """
-        Saves the file to the uploads directory, counts lines, and saves metadata.
+        Saves the file to the TiDB database, counts lines, and saves metadata.
         """
-        # 1. Perform metadata verification (filename and content size)
         original_name = file.filename
         
-        # Read a small chunk or check headers if needed, but FastAPI does not give size by default
-        # unless we check the headers content-length or seek to the end.
-        # Let's seek to end to check size if not provided by headers.
+        # Read the file content bytes
         try:
-            # Check content-length header first
-            content_length = file.headers.get("content-length")
-            if content_length:
-                file_size = int(content_length)
-            else:
-                # Seek to find file size
-                file.file.seek(0, os.SEEK_END)
-                file_size = file.file.tell()
-                file.file.seek(0)  # Reset to beginning
+            content_bytes = file.file.read()
+            file.file.seek(0)  # Reset to beginning
         except Exception as e:
             logger.error(f"Error checking file size: {str(e)}")
             raise HTTPException(
@@ -80,105 +70,91 @@ class UploadService:
                 detail="Could not determine file size."
             )
 
-        # Validate file
+        file_size = len(content_bytes)
+
+        # Validate file size and extension
         cls.validate_file_metadata(original_name, file_size)
 
-        # Generate unique file id and save filename
-        file_id = str(uuid.uuid4())
-        extension = Path(original_name).suffix.lower()
-        unique_filename = f"{file_id}{extension}"
-        
-        # Paths
-        saved_file_path = settings.UPLOAD_DIR / unique_filename
-        # Relative path returned to client (as per contract/standards)
-        relative_saved_path = f"{settings.UPLOAD_DIR_NAME}/{unique_filename}"
-
-        # 2. Write file content to disk in chunks to handle size efficiently
+        # Decode the file bytes to string for database storing
         try:
-            with open(saved_file_path, "wb") as buffer:
-                while True:
-                    chunk = file.file.read(1024 * 1024)  # 1MB chunks
-                    if not chunk:
-                        break
-                    buffer.write(chunk)
-            logger.info(f"File saved successfully: {unique_filename} (Original: {original_name})")
+            content_text = content_bytes.decode("utf-8", errors="ignore")
         except Exception as e:
-            logger.error(f"Failed to write file {unique_filename} to disk: {str(e)}")
-            if saved_file_path.exists():
-                saved_file_path.unlink()
+            logger.error(f"Failed to decode file: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save uploaded file to server disk."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file is not a valid text/log format."
             )
 
-        # 3. Count lines
-        total_lines = cls._count_lines(saved_file_path)
+        # Generate unique file id
+        file_id = str(uuid.uuid4())
+        
+        # Count lines from content_text
+        total_lines = len(content_text.splitlines())
 
-        # 4. Prepare metadata
+        # Persist log file and metadata to TiDB Database
+        from config.db import SessionLocal, DBLogFile
+        db = SessionLocal()
+        try:
+            db_file = DBLogFile(
+                file_id=file_id,
+                original_name=original_name,
+                content=content_text,
+                total_lines=total_lines,
+                status="uploaded"
+            )
+            db.add(db_file)
+            db.commit()
+            logger.info(f"Log file saved to TiDB successfully: {original_name} (ID: {file_id})")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to save log file to database: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to record upload metadata on database."
+            )
+        finally:
+            db.close()
+
         metadata = {
             "success": True,
             "file_id": file_id,
             "original_name": original_name,
-            "saved_path": relative_saved_path,
+            "saved_path": f"db://log_files/{file_id}",
             "total_lines": total_lines,
             "status": "uploaded"
         }
-
-        # 5. Persist metadata to JSON file
-        metadata_filepath = settings.METADATA_DIR / f"{file_id}.json"
-        try:
-            with open(metadata_filepath, "w", encoding="utf-8") as f:
-                json.dump(metadata, f, indent=4)
-            logger.info(f"Metadata stored successfully for file_id: {file_id}")
-        except Exception as e:
-            logger.error(f"Failed to save metadata for file_id {file_id}: {str(e)}")
-            # Clean up the file if metadata write fails
-            if saved_file_path.exists():
-                saved_file_path.unlink()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to record upload metadata on server."
-            )
 
         return UploadResponse(**metadata)
 
     @classmethod
     def get_metadata(cls, file_id: str) -> PipelineMetadataResponse:
         """
-        Retrieves log metadata using the file_id.
+        Retrieves log metadata using the file_id from the database.
         """
-        metadata_filepath = settings.METADATA_DIR / f"{file_id}.json"
-        if not metadata_filepath.exists():
+        from config.db import SessionLocal, DBLogFile
+        db = SessionLocal()
+        db_file = None
+        try:
+            db_file = db.query(DBLogFile).filter(DBLogFile.file_id == file_id).first()
+        except Exception as e:
+            logger.error(f"Database query error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error reading metadata."
+            )
+        finally:
+            db.close()
+
+        if not db_file:
             logger.warning(f"Metadata lookup failed: file_id '{file_id}' not found")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Log file metadata for ID {file_id} not found."
             )
 
-        try:
-            with open(metadata_filepath, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            
-            # Verify the referenced log file still exists
-            actual_file_path = settings.BACKEND_DIR / data["saved_path"]
-            if not actual_file_path.exists():
-                logger.error(f"Reference log file missing for metadata ID {file_id}")
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Log file has been removed or is missing from server."
-                )
-
-            return PipelineMetadataResponse(
-                file_id=data["file_id"],
-                saved_path=data["saved_path"],
-                total_lines=data["total_lines"],
-                status=data["status"]
-            )
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Error loading metadata for file_id {file_id}: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal error reading upload metadata."
-            )
+        return PipelineMetadataResponse(
+            file_id=db_file.file_id,
+            saved_path=f"db://log_files/{db_file.file_id}",
+            total_lines=db_file.total_lines,
+            status=db_file.status
+        )

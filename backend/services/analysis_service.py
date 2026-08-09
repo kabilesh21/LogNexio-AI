@@ -19,40 +19,45 @@ class AnalysisService:
     def analyze_file(cls, file_id: str) -> AnalysisResponse:
         """
         Runs the streaming analysis pipeline to detect error blocks, extract context,
-        classify severity levels, and caches the result. Reuse parsed cache if available.
+        classify severity levels, and caches the result in TiDB database.
         """
-        # 1. Try Cache hit first
-        cache_filepath = settings.METADATA_DIR / f"{file_id}_analysis.json"
-        if cache_filepath.exists():
+        # 1. Try Cache hit first from database
+        from config.db import SessionLocal, DBLogFile, DBAnalysisCache, DBIncident
+        db = SessionLocal()
+        db_cache = None
+        try:
+            db_cache = db.query(DBAnalysisCache).filter(DBAnalysisCache.file_id == file_id).first()
+        except Exception as e:
+            logger.error(f"Error querying analysis cache: {str(e)}")
+        finally:
+            db.close()
+
+        if db_cache:
             logger.info(f"Analysis cache HIT for file_id: {file_id}. Loading parsed results.")
             try:
-                with open(cache_filepath, "r", encoding="utf-8") as f:
-                    cached_data = json.load(f)
+                cached_data = json.loads(db_cache.analysis_data)
                 return AnalysisResponse(**cached_data)
             except Exception as e:
-                logger.error(f"Failed to load cached analysis file {cache_filepath.name}: {str(e)}")
+                logger.error(f"Failed to load cached analysis data: {str(e)}")
                 # Continue to re-generate if cache is corrupted
         
         logger.info(f"Analysis cache MISS for file_id: {file_id}. Initiating stream analysis.")
         
-        # 2. Get file details from upload metadata
-        upload_meta_path = settings.METADATA_DIR / f"{file_id}.json"
-        if not upload_meta_path.exists():
-            logger.error(f"Upload file metadata not found for ID: {file_id}")
+        # 2. Get file details from database
+        db = SessionLocal()
+        db_file = None
+        try:
+            db_file = db.query(DBLogFile).filter(DBLogFile.file_id == file_id).first()
+        except Exception as e:
+            logger.error(f"Failed to query log file: {str(e)}")
+        finally:
+            db.close()
+
+        if not db_file:
+            logger.error(f"Upload file not found for ID: {file_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Log file metadata for ID {file_id} not found."
-            )
-
-        with open(upload_meta_path, "r", encoding="utf-8") as f:
-            upload_meta = json.load(f)
-
-        filepath = settings.BACKEND_DIR / upload_meta["saved_path"]
-        if not filepath.exists():
-            logger.error(f"Target log file missing: {filepath}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="The actual log file was not found on the server."
             )
 
         # 3. Stream through lines to extract incidents
@@ -65,7 +70,7 @@ class AnalysisService:
         active_incident = None
 
         try:
-            line_generator = ParserService.stream_log_lines(filepath)
+            line_generator = ParserService.stream_log_lines(db_file.content)
             for line_item in line_generator:
                 line_num = line_item["line"]
                 line_text = line_item["text"]
@@ -143,38 +148,57 @@ class AnalysisService:
         duration = time.time() - start_time
         logger.info(f"Stream analysis completed in {duration:.4f}s. Detected {len(incidents)} incidents.")
 
-        # 4. Generate UUIDs, classify severity / type and write persistent O(1) files
-        incidents_dir = settings.METADATA_DIR / "incidents"
-        incidents_dir.mkdir(parents=True, exist_ok=True)
-
+        # 4. Generate UUIDs, classify severity / type and write persistent database records
         incident_responses: List[IncidentResponse] = []
-        for inc in incidents:
-            inc_id = inc["incident_id"]
-            severity = cls.classify_severity(inc["error_block"])
-            error_type = cls.extract_error_type(inc["error_block"])
+        
+        db = SessionLocal()
+        try:
+            # Delete any previously parsed incidents for this file_id (idempotency)
+            db.query(DBIncident).filter(DBIncident.file_id == file_id).delete()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.warning(f"Failed to delete old database incidents for file {file_id}: {e}")
 
-            inc_resp = IncidentResponse(
-                incident_id=inc_id,
-                line_number=inc["line_number"],
-                error_type=error_type,
-                severity=severity,
-                context_before=inc["context_before"],
-                error_block=inc["error_block"],
-                context_after=inc["context_after"],
-                analysis_ready=True
-            )
-            incident_responses.append(inc_resp)
+        try:
+            for inc in incidents:
+                inc_id = inc["incident_id"]
+                severity = cls.classify_severity(inc["error_block"])
+                error_type = cls.extract_error_type(inc["error_block"])
 
-            # Persist individual incident file for Module 3 integration
-            inc_file_path = incidents_dir / f"{inc_id}.json"
-            try:
-                with open(inc_file_path, "w", encoding="utf-8") as f:
-                    json.dump(inc_resp.dict(), f, indent=4)
-            except Exception as e:
-                logger.error(f"Failed to persist incident file {inc_id}.json: {str(e)}")
-                # Non-blocking, continue parsing
+                inc_resp = IncidentResponse(
+                    incident_id=inc_id,
+                    line_number=inc["line_number"],
+                    error_type=error_type,
+                    severity=severity,
+                    context_before=inc["context_before"],
+                    error_block=inc["error_block"],
+                    context_after=inc["context_after"],
+                    analysis_ready=True
+                )
+                incident_responses.append(inc_resp)
 
-        # 5. Save master cache file
+                # Persist to database
+                db_inc = DBIncident(
+                    incident_id=inc_id,
+                    file_id=file_id,
+                    line_number=inc["line_number"],
+                    error_type=error_type,
+                    severity=severity,
+                    context_before=json.dumps(inc["context_before"]),
+                    error_block=json.dumps(inc["error_block"]),
+                    context_after=json.dumps(inc["context_after"]),
+                    analysis_ready=True
+                )
+                db.add(db_inc)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to persist incidents to database: {str(e)}")
+        finally:
+            db.close()
+
+        # 5. Save master cache database record
         analysis_data = {
             "success": True,
             "file_id": file_id,
@@ -182,38 +206,60 @@ class AnalysisService:
             "errors": [inc.dict() for inc in incident_responses]
         }
         
+        db = SessionLocal()
         try:
-            with open(cache_filepath, "w", encoding="utf-8") as f:
-                json.dump(analysis_data, f, indent=4)
-            logger.info(f"Cached master analysis JSON to: {cache_filepath.name}")
+            db_cache = DBAnalysisCache(
+                file_id=file_id,
+                total_errors=len(incident_responses),
+                analysis_data=json.dumps(analysis_data)
+            )
+            db.merge(db_cache)
+            db.commit()
+            logger.info(f"Cached master analysis in database: {file_id}")
         except Exception as e:
-            logger.error(f"Failed to save analysis cache file {cache_filepath.name}: {str(e)}")
+            db.rollback()
+            logger.error(f"Failed to save analysis cache in database: {str(e)}")
+        finally:
+            db.close()
 
         return AnalysisResponse(**analysis_data)
 
     @classmethod
     def get_incident(cls, incident_id: str) -> IncidentResponse:
         """
-        Retrieves a single incident from disk in O(1) using incident_id.
+        Retrieves a single incident from database in O(1) using incident_id.
         """
-        inc_file_path = settings.METADATA_DIR / "incidents" / f"{incident_id}.json"
-        if not inc_file_path.exists():
-            logger.warning(f"Incident lookup failed. ID not found: {incident_id}")
+        from config.db import SessionLocal, DBIncident
+        db = SessionLocal()
+        db_inc = None
+        try:
+            db_inc = db.query(DBIncident).filter(DBIncident.incident_id == incident_id).first()
+        except Exception as e:
+            logger.error(f"Failed to read incident from database: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error reading incident details."
+            )
+        finally:
+            db.close()
+
+        if not db_inc:
+            logger.warning(f"Incident lookup failed. ID not found in database: {incident_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Incident with ID {incident_id} not found."
             )
 
-        try:
-            with open(inc_file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return IncidentResponse(**data)
-        except Exception as e:
-            logger.error(f"Failed to read incident metadata for ID {incident_id}: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to read incident details from storage."
-            )
+        return IncidentResponse(
+            incident_id=db_inc.incident_id,
+            line_number=db_inc.line_number,
+            error_type=db_inc.error_type,
+            severity=db_inc.severity,
+            context_before=json.loads(db_inc.context_before),
+            error_block=json.loads(db_inc.error_block),
+            context_after=json.loads(db_inc.context_after),
+            analysis_ready=db_inc.analysis_ready
+        )
 
     @classmethod
     def _add_to_incidents(cls, active_incident: Dict[str, Any], incidents: List[Dict[str, Any]]):

@@ -1,14 +1,11 @@
 import json
-from pathlib import Path
 from fastapi import APIRouter, status
-from config.config import settings
+from sqlalchemy import func
+from config.db import SessionLocal, DBLogFile, DBAnalysisCache, DBIncident, DBAIReport
 from utils.analysis_logger import get_analysis_logger
 
 logger = get_analysis_logger("DashboardRoutes")
 router = APIRouter(tags=["Dashboard"])
-
-METADATA_DIR: Path = settings.METADATA_DIR
-REPORTS_DIR: Path = settings.UPLOAD_DIR / "reports"
 
 
 @router.get(
@@ -16,18 +13,18 @@ REPORTS_DIR: Path = settings.UPLOAD_DIR / "reports"
     status_code=status.HTTP_200_OK,
     summary="Get aggregated dashboard statistics",
     description=(
-        "Scans all on-disk metadata and AI report cache files to compute aggregate statistics "
-        "for the Operations Dashboard. This endpoint is read-only and never modifies existing data."
+        "Queries database metadata and analysis cache to compute aggregate statistics "
+        "for the Operations Dashboard."
     ),
 )
 def get_dashboard_summary():
     """
     GET /api/dashboard/summary
 
-    Aggregates counts and metrics by scanning:
-    - uploads/metadata/{file_id}.json        → file stats
-    - uploads/metadata/{file_id}_analysis.json → incident severity breakdown
-    - uploads/reports/{incident_id}.json      → AI report stats
+    Aggregates counts and metrics by querying database tables:
+    - log_files      → file stats
+    - analysis_cache → incident severity breakdown
+    - ai_reports     → AI report stats
     """
     total_logs: int = 0
     total_lines: int = 0
@@ -37,30 +34,21 @@ def get_dashboard_summary():
     medium: int = 0
     low: int = 0
     ai_reports: int = 0
-    cache_hits: int = 0
-    ai_times: list = []
+    avg_ai_time = "~3-5s"
 
-    # ── Scan metadata files ────────────────────────────────────────────
-    if METADATA_DIR.exists():
-        for path in METADATA_DIR.glob("*.json"):
-            name = path.stem
-            # Skip analysis JSONs (those end with _analysis or are incident UUIDs)
-            if "_analysis" in name or "incidents" in name:
-                continue
-            # Skip incident sub-directory
-            if path.is_dir():
-                continue
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-                total_logs += 1
-                total_lines += data.get("total_lines", 0)
-            except Exception:
-                continue
+    db = SessionLocal()
+    try:
+        # 1. Total logs and lines from log_files
+        stats = db.query(func.count(DBLogFile.file_id), func.sum(DBLogFile.total_lines)).first()
+        if stats:
+            total_logs = stats[0] or 0
+            total_lines = stats[1] or 0
 
-        # Scan analysis files for incident severity breakdown
-        for path in METADATA_DIR.glob("*_analysis.json"):
+        # 2. Total incidents and severity breakdown from DBAnalysisCache
+        caches = db.query(DBAnalysisCache.analysis_data).all()
+        for row in caches:
             try:
-                data = json.loads(path.read_text(encoding="utf-8"))
+                data = json.loads(row[0])
                 for incident in data.get("errors", []):
                     severity = incident.get("severity", "LOW").upper()
                     total_incidents += 1
@@ -75,19 +63,13 @@ def get_dashboard_summary():
             except Exception:
                 continue
 
-    # ── Scan AI report cache ───────────────────────────────────────────
-    if REPORTS_DIR.exists():
-        for path in REPORTS_DIR.glob("*.json"):
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-                if data.get("incident_id"):
-                    ai_reports += 1
-            except Exception:
-                continue
+        # 3. AI Reports count
+        ai_reports = db.query(func.count(DBAIReport.incident_id)).scalar() or 0
 
-    # ── Compute average AI time from analysis log (approximate) ───────
-    # Since timing is not stored persistently, we use a sensible default
-    avg_ai_time = "~3-5s"
+    except Exception as e:
+        logger.error(f"Failed to query dashboard summary: {str(e)}")
+    finally:
+        db.close()
 
     logger.info(
         f"Dashboard summary computed: logs={total_logs}, incidents={total_incidents}, "
@@ -118,53 +100,53 @@ def get_all_incidents():
     """
     GET /api/dashboard/incidents
 
-    Aggregates all incidents from all *_analysis.json files.
-    Each incident is enriched with its AI report status.
+    Aggregates all incidents from DBIncident table,
+    enriched with their AI report status.
     """
     all_incidents = []
 
-    if not METADATA_DIR.exists():
-        return {"incidents": []}
+    db = SessionLocal()
+    try:
+        # Query all incidents
+        db_incidents = db.query(DBIncident).all()
+        
+        # Query all AI reports so we can map them in-memory
+        db_reports = db.query(DBAIReport).all()
+        reports_map = {}
+        for r in db_reports:
+            try:
+                reports_map[r.incident_id] = json.loads(r.report_data)
+            except Exception:
+                continue
 
-    for path in METADATA_DIR.glob("*_analysis.json"):
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            file_id = data.get("file_id", "")
-            for incident in data.get("errors", []):
-                incident_id = incident.get("incident_id", "")
-                # Check if AI report exists
-                report_path = REPORTS_DIR / f"{incident_id}.json"
-                ai_status = "analysed" if report_path.exists() else "pending"
+        for inc in db_incidents:
+            try:
+                incident_id = inc.incident_id
+                ai_summary = reports_map.get(incident_id)
+                ai_status = "analysed" if ai_summary else "pending"
 
-                # Load AI report summary if available
-                ai_summary = None
-                if report_path.exists():
-                    try:
-                        report = json.loads(report_path.read_text(encoding="utf-8"))
-                        ai_summary = {
-                            "incident_summary": report.get("incident_summary", ""),
-                            "root_cause": report.get("root_cause", ""),
-                            "severity": report.get("severity", incident.get("severity", "LOW")),
-                            "confidence": report.get("confidence", "N/A"),
-                            "affected_component": report.get("affected_component", ""),
-                            "technical_explanation": report.get("technical_explanation", ""),
-                            "business_impact": report.get("business_impact", ""),
-                            "resolution_steps": report.get("resolution_steps", []),
-                            "preventive_measures": report.get("preventive_measures", []),
-                            "estimated_fix_time": report.get("estimated_fix_time", ""),
-                            "keywords": report.get("keywords", []),
-                        }
-                    except Exception:
-                        pass
-
-                all_incidents.append({
-                    **incident,
-                    "file_id": file_id,
+                incident_data = {
+                    "incident_id": incident_id,
+                    "file_id": inc.file_id,
+                    "line_number": inc.line_number,
+                    "error_type": inc.error_type,
+                    "severity": inc.severity,
+                    "context_before": json.loads(inc.context_before),
+                    "error_block": json.loads(inc.error_block),
+                    "context_after": json.loads(inc.context_after),
+                    "analysis_ready": inc.analysis_ready,
                     "ai_status": ai_status,
                     "ai_summary": ai_summary,
-                })
-        except Exception:
-            continue
+                }
+                all_incidents.append(incident_data)
+            except Exception as e:
+                logger.error(f"Error compiling incident {inc.incident_id} for dashboard: {e}")
+                continue
+
+    except Exception as e:
+        logger.error(f"Failed to query incidents list: {str(e)}")
+    finally:
+        db.close()
 
     # Sort by line_number descending (newest first)
     all_incidents.sort(key=lambda x: x.get("line_number", 0), reverse=True)

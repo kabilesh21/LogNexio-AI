@@ -332,8 +332,19 @@ class ExportService:
                     # Pure white background to match the white page background
                     bg = PILImage.new('RGB', img.size, (255, 255, 255))
                     bg.paste(alpha, mask=alpha.split()[3])
-                    bg.save(flat_logo_path, "PNG")
-                    logo_img_path = flat_logo_path
+                    try:
+                        bg.save(flat_logo_path, "PNG")
+                        logo_img_path = flat_logo_path
+                    except Exception:
+                        # Fallback for read-only filesystem (e.g. Vercel)
+                        temp_flat_path = os.path.join("/tmp", "logo_icon_flat.png")
+                        try:
+                            # Create directory if it doesn't exist
+                            os.makedirs("/tmp", exist_ok=True)
+                        except Exception:
+                            pass
+                        bg.save(temp_flat_path, "PNG")
+                        logo_img_path = temp_flat_path
                 else:
                     logo_img_path = logo_path
                 

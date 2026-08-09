@@ -14,6 +14,7 @@ class Settings:
     HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8000"))
     ENV: str = os.getenv("ENV", "development")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "mysql+pymysql://root:@127.0.0.1:3306/lognexio")
     
     # Upload Settings
     UPLOAD_DIR_NAME: str = os.getenv("UPLOAD_DIR", "uploads")

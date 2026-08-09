@@ -29,12 +29,18 @@ def get_system_health():
     seconds = uptime_seconds % 60
     uptime_str = f"{hours}h {minutes}m {seconds}s"
 
-    # Check uploads directory health
-    uploads_healthy = settings.UPLOAD_DIR.exists() and os.access(settings.UPLOAD_DIR, os.W_OK)
-    
-    # Check reports cache directory health
-    reports_dir = settings.UPLOAD_DIR / "reports"
-    reports_healthy = reports_dir.exists() and os.access(reports_dir, os.W_OK)
+    # Check database health
+    from config.db import SessionLocal
+    from sqlalchemy import text
+    database_healthy = False
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        database_healthy = True
+    except Exception as e:
+        logger.error(f"Database health check failed: {str(e)}")
+    finally:
+        db.close()
 
     # Check Gemini API Key configuration status
     gemini_healthy = bool(GEMINI_API_KEY and GEMINI_API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE")
@@ -42,9 +48,10 @@ def get_system_health():
     return {
         "backend": "healthy",
         "gemini": "healthy" if gemini_healthy else "degraded",
-        "uploads": "healthy" if uploads_healthy else "unhealthy",
-        "reports": "healthy" if reports_healthy else "unhealthy",
-        "cache": "healthy" if reports_healthy else "unhealthy",
+        "database": "healthy" if database_healthy else "unhealthy",
+        "uploads": "healthy" if database_healthy else "unhealthy",
+        "reports": "healthy" if database_healthy else "unhealthy",
+        "cache": "healthy" if database_healthy else "unhealthy",
         "version": "1.0.0",
         "uptime": uptime_str,
         "timestamp": time.time(),
