@@ -74,7 +74,7 @@ export default function LoginRegister({ onLoginSuccess }) {
       <div className="w-full max-w-5xl bg-[#f1e6d5] border border-[#dfcbb5] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row min-h-[600px]">
         
         {/* Left Side: Curvy Solid Color Branding (NO IMAGES, NO GRAPHICS) */}
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#3a1d08] via-[#6e3d1c] to-[#1c120c] p-12 flex-col justify-between relative text-white select-none overflow-visible">
+        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#d4bd9f] via-[#c2a783] to-[#aa8c65] p-12 flex-col justify-between relative text-[#1c120c] select-none overflow-visible">
           
           {/* SVG Curvy Divider cutting into the left pane */}
           <div className="absolute top-0 bottom-0 right-0 w-24 h-full pointer-events-none z-20">
@@ -85,27 +85,59 @@ export default function LoginRegister({ onLoginSuccess }) {
 
           {/* Logo and Brand */}
           <div className="relative z-10 flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/20">
-              <Shield className="w-6 h-6 text-[#dfcbb5]" />
+            <div className="p-1.5 bg-[#1c120c]/5 rounded-xl border border-[#1c120c]/10 flex items-center justify-center">
+              {/* Detailed custom SVG brain logo matching the LogNexio brand identity */}
+              <svg className="w-9 h-9 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Left Side (Circuit Brain) */}
+                <path d="M11.5,4 C9.2,4 7,5.2 6.1,7 C5.6,7.9 5.2,9.3 5.4,10.6 C5.2,11.1 4.9,11.5 4.9,12 C4.9,13.8 6.1,15.6 7.5,16.5 C7.6,17 7.6,17.4 7.8,17.9 C8.4,19.7 10.2,20.2 11.5,20.2" stroke="#1c120c" strokeWidth="1.2" strokeLinecap="round" />
+                <path d="M11.5,6.5 L9.5,6.5 C8.8,6.5 8.2,7.1 8.2,7.8 M11.5,9.5 L10.1,9.5 C9.5,9.5 9,10 9,10.6 L9,11 M11.5,12 L9.5,12 L9,11.5 M11.5,14.8 L10.1,14.8 L9.6,13.9 L9.6,13.4 M11.5,17.6 L9.5,17.6 L9,17.1" stroke="#1c120c" strokeWidth="1" strokeLinecap="round" />
+                <circle cx="8.2" cy="7.8" r="0.6" fill="#1c120c" />
+                <circle cx="9" cy="11.1" r="0.6" fill="#1c120c" />
+                <circle cx="9" cy="11.5" r="0.6" fill="#1c120c" />
+                <circle cx="9.6" cy="13.4" r="0.6" fill="#1c120c" />
+                <circle cx="9" cy="17.1" r="0.6" fill="#1c120c" />
+
+                {/* Right Side (Neural Brain) */}
+                <path d="M12.5,4 C14.8,4 17,5.2 17.9,7 C18.4,7.9 18.8,9.3 18.6,10.6 C18.8,11.1 19.1,11.5 19.1,12 C19.1,13.8 17.9,15.6 16.5,16.5 C16.4,17 16.4,17.4 16.2,17.9 C15.6,19.7 13.8,20.2 12.5,20.2" stroke="#2bb385" strokeWidth="1.2" strokeLinecap="round" />
+                <line x1="12.5" y1="7.5" x2="15.8" y2="7.5" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="15.8" y1="7.5" x2="17.2" y2="9.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="17.2" y1="9.8" x2="14.4" y2="11.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="14.4" y1="11.8" x2="12.5" y2="11.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="12.5" y1="14.8" x2="16.2" y2="14.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="16.2" y1="14.8" x2="17.2" y2="17.1" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="17.2" y1="17.1" x2="14.4" y2="19.1" stroke="#2bb385" strokeWidth="0.8" />
+                
+                <line x1="15.8" y1="7.5" x2="14.4" y2="11.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="17.2" y1="9.8" x2="16.2" y2="14.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="14.4" y1="11.8" x2="16.2" y2="14.8" stroke="#2bb385" strokeWidth="0.8" />
+                <line x1="16.2" y1="14.8" x2="14.4" y2="19.1" stroke="#2bb385" strokeWidth="0.8" />
+
+                <circle cx="15.8" cy="7.5" r="0.8" fill="#2bb385" />
+                <circle cx="17.2" cy="9.8" r="0.8" fill="#2bb385" />
+                <circle cx="14.4" cy="11.8" r="0.8" fill="#2bb385" />
+                <circle cx="16.2" cy="14.8" r="0.8" fill="#2bb385" />
+                <circle cx="17.2" cy="17.1" r="0.8" fill="#2bb385" />
+                <circle cx="14.4" cy="19.1" r="0.8" fill="#2bb385" />
+              </svg>
             </div>
             <div>
-              <span className="font-bold text-xl tracking-wide uppercase font-mono">LogNexio AI</span>
-              <p className="text-[10px] text-[#dfcbb5] tracking-widest uppercase">Intelligence Over Matter</p>
+              <span className="font-bold text-xl tracking-wide uppercase font-mono text-[#1c120c]">LogNexio AI</span>
+              <p className="text-[10px] text-[#3a1d08]/85 tracking-widest uppercase font-semibold">Intelligence Over Matter</p>
             </div>
           </div>
 
           {/* Center Minimal Text Branding */}
           <div className="relative z-10 my-auto flex flex-col gap-4 max-w-xs">
-            <h2 className="text-4xl font-extrabold text-[#faf6f0] leading-tight tracking-tight">
+            <h2 className="text-4xl font-extrabold text-[#1c120c] leading-tight tracking-tight">
               Real-time Log Analysis.
             </h2>
-            <p className="text-sm text-[#dfcbb5] leading-relaxed">
+            <p className="text-sm text-[#1c120c]/85 leading-relaxed font-medium">
               Accelerate incident resolution times and simplify anomaly diagnostics with automated AI intelligence.
             </p>
           </div>
 
           {/* Footer Copyright */}
-          <div className="relative z-10 text-[10px] text-[#dfcbb5]/60">
+          <div className="relative z-10 text-[10px] text-[#1c120c]/60 font-semibold">
             &copy; 2026 LogNexio AI Platform. All Rights Reserved.
           </div>
         </div>
