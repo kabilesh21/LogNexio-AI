@@ -86,39 +86,8 @@ export default function LoginRegister({ onLoginSuccess }) {
           {/* Logo and Brand */}
           <div className="relative z-10 flex items-center gap-3">
             <div className="p-1.5 bg-[#1c120c]/5 rounded-xl border border-[#1c120c]/10 flex items-center justify-center">
-              {/* Detailed custom SVG brain logo matching the LogNexio brand identity */}
-              <svg className="w-9 h-9 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Left Side (Circuit Brain) */}
-                <path d="M11.5,4 C9.2,4 7,5.2 6.1,7 C5.6,7.9 5.2,9.3 5.4,10.6 C5.2,11.1 4.9,11.5 4.9,12 C4.9,13.8 6.1,15.6 7.5,16.5 C7.6,17 7.6,17.4 7.8,17.9 C8.4,19.7 10.2,20.2 11.5,20.2" stroke="#1c120c" strokeWidth="1.2" strokeLinecap="round" />
-                <path d="M11.5,6.5 L9.5,6.5 C8.8,6.5 8.2,7.1 8.2,7.8 M11.5,9.5 L10.1,9.5 C9.5,9.5 9,10 9,10.6 L9,11 M11.5,12 L9.5,12 L9,11.5 M11.5,14.8 L10.1,14.8 L9.6,13.9 L9.6,13.4 M11.5,17.6 L9.5,17.6 L9,17.1" stroke="#1c120c" strokeWidth="1" strokeLinecap="round" />
-                <circle cx="8.2" cy="7.8" r="0.6" fill="#1c120c" />
-                <circle cx="9" cy="11.1" r="0.6" fill="#1c120c" />
-                <circle cx="9" cy="11.5" r="0.6" fill="#1c120c" />
-                <circle cx="9.6" cy="13.4" r="0.6" fill="#1c120c" />
-                <circle cx="9" cy="17.1" r="0.6" fill="#1c120c" />
-
-                {/* Right Side (Neural Brain) */}
-                <path d="M12.5,4 C14.8,4 17,5.2 17.9,7 C18.4,7.9 18.8,9.3 18.6,10.6 C18.8,11.1 19.1,11.5 19.1,12 C19.1,13.8 17.9,15.6 16.5,16.5 C16.4,17 16.4,17.4 16.2,17.9 C15.6,19.7 13.8,20.2 12.5,20.2" stroke="#2bb385" strokeWidth="1.2" strokeLinecap="round" />
-                <line x1="12.5" y1="7.5" x2="15.8" y2="7.5" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="15.8" y1="7.5" x2="17.2" y2="9.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="17.2" y1="9.8" x2="14.4" y2="11.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="14.4" y1="11.8" x2="12.5" y2="11.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="12.5" y1="14.8" x2="16.2" y2="14.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="16.2" y1="14.8" x2="17.2" y2="17.1" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="17.2" y1="17.1" x2="14.4" y2="19.1" stroke="#2bb385" strokeWidth="0.8" />
-                
-                <line x1="15.8" y1="7.5" x2="14.4" y2="11.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="17.2" y1="9.8" x2="16.2" y2="14.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="14.4" y1="11.8" x2="16.2" y2="14.8" stroke="#2bb385" strokeWidth="0.8" />
-                <line x1="16.2" y1="14.8" x2="14.4" y2="19.1" stroke="#2bb385" strokeWidth="0.8" />
-
-                <circle cx="15.8" cy="7.5" r="0.8" fill="#2bb385" />
-                <circle cx="17.2" cy="9.8" r="0.8" fill="#2bb385" />
-                <circle cx="14.4" cy="11.8" r="0.8" fill="#2bb385" />
-                <circle cx="16.2" cy="14.8" r="0.8" fill="#2bb385" />
-                <circle cx="17.2" cy="17.1" r="0.8" fill="#2bb385" />
-                <circle cx="14.4" cy="19.1" r="0.8" fill="#2bb385" />
-              </svg>
+              {/* Actual LogNexio Brain Logo icon asset */}
+              <img src="/logo_icon.png" className="w-9 h-9 object-contain select-none" alt="LogNexio Logo" />
             </div>
             <div>
               <span className="font-bold text-xl tracking-wide uppercase font-mono text-[#1c120c]">LogNexio AI</span>
