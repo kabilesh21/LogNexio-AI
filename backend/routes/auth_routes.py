@@ -127,8 +127,11 @@ def login_user(payload: UserLoginRequest):
     
     db = SessionLocal()
     try:
-        # Query user
-        user = db.query(DBUser).filter(DBUser.username == payload.username).first()
+        # Query user by username or email
+        from sqlalchemy import or_
+        user = db.query(DBUser).filter(
+            or_(DBUser.username == payload.username, DBUser.email == payload.username)
+        ).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
