@@ -77,7 +77,7 @@ export default function LoginRegister({ onLoginSuccess }) {
         <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#3a1d08] via-[#6e3d1c] to-[#1c120c] p-12 flex-col justify-between relative text-white select-none overflow-visible">
           
           {/* SVG Curvy Divider cutting into the left pane */}
-          <div className="absolute top-0 bottom-0 -right-24 w-24 h-full pointer-events-none z-20">
+          <div className="absolute top-0 bottom-0 right-0 w-24 h-full pointer-events-none z-20">
             <svg className="h-full w-full fill-[#faf6f0]" viewBox="0 0 100 100" preserveAspectRatio="none">
               <path d="M100,0 C40,15 30,85 100,100 L100,100 Z" />
             </svg>
