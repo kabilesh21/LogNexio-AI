@@ -70,8 +70,8 @@ export default function LoginRegister({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf6f0] flex items-center justify-center p-4 md:p-8 font-sans">
-      <div className="w-full max-w-5xl bg-[#f1e6d5] border border-[#dfcbb5] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row min-h-[600px]">
+    <div className="min-h-screen bg-gradient-to-br from-[#ebdccb] via-[#c2a783] to-[#aa8c65] flex items-center justify-center p-4 md:p-8 font-sans">
+      <div className="w-full max-w-5xl bg-[#faf6f0] border border-[#dfcbb5] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row min-h-[600px]">
         
         {/* Left Side: Curvy Solid Color Branding (NO IMAGES, NO GRAPHICS) */}
         <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#d4bd9f] via-[#c2a783] to-[#aa8c65] p-12 flex-col justify-between relative text-[#1c120c] select-none overflow-visible">
