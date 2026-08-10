@@ -5,7 +5,8 @@ import datetime
 from fastapi import APIRouter, status, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from config.db import SessionLocal, DBUser
+from config.db import SessionLocal, DBUser, DBPasswordReset
+from services.email_service import send_reset_otp_email
 from utils.logger import get_logger
 
 logger = get_logger("AuthRoutes")
@@ -156,6 +157,138 @@ def login_user(payload: UserLoginRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Login failed: {str(e)}"
+        )
+    finally:
+        db.close()
+
+# --- Password Reset Request / Response Models ---
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(...)
+
+class ResetPasswordRequest(BaseModel):
+    email: str = Field(...)
+    otp: str = Field(..., min_length=6, max_length=6)
+    new_password: str = Field(..., min_length=6)
+
+@router.post(
+    "/auth/forgot-password",
+    status_code=status.HTTP_200_OK,
+    summary="Request a password reset code",
+    description="Checks if email is registered, generates OTP, saves to DB, sends SMTP mail."
+)
+def forgot_password(payload: ForgotPasswordRequest):
+    logger.info(f"Received forgot password request for email: {payload.email}")
+    db = SessionLocal()
+    try:
+        # Check if user exists with this email
+        user = db.query(DBUser).filter(DBUser.email == payload.email).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No user registered with this email address."
+            )
+            
+        # Generate 6-digit numeric OTP
+        otp = f"{secrets.randbelow(1000000):06d}"
+        expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+        
+        # Check if a reset code already exists for this email
+        reset_record = db.query(DBPasswordReset).filter(DBPasswordReset.email == payload.email).first()
+        if reset_record:
+            reset_record.otp = otp
+            reset_record.expires_at = expires_at
+            reset_record.created_at = datetime.datetime.utcnow()
+        else:
+            reset_record = DBPasswordReset(
+                email=payload.email,
+                otp=otp,
+                expires_at=expires_at,
+                created_at=datetime.datetime.utcnow()
+            )
+            db.add(reset_record)
+            
+        db.commit()
+        
+        # Send SMTP verification email
+        email_sent = send_reset_otp_email(payload.email, otp)
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email. Please try again later."
+            )
+            
+        return {"success": True, "message": "Verification OTP has been sent to your email."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error during forgot-password request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Forgot password request failed: {str(e)}"
+        )
+    finally:
+        db.close()
+
+@router.post(
+    "/auth/reset-password",
+    status_code=status.HTTP_200_OK,
+    summary="Reset password using verification code",
+    description="Validates OTP, hashes new password, updates database record."
+)
+def reset_password(payload: ResetPasswordRequest):
+    logger.info(f"Received reset password request for email: {payload.email}")
+    db = SessionLocal()
+    try:
+        # Find reset record
+        reset_record = db.query(DBPasswordReset).filter(DBPasswordReset.email == payload.email).first()
+        if not reset_record:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No reset code found or it has already expired."
+            )
+            
+        # Verify expiration
+        if datetime.datetime.utcnow() > reset_record.expires_at:
+            db.delete(reset_record)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verification code has expired. Please request a new one."
+            )
+            
+        # Verify OTP code
+        if not secrets.compare_digest(reset_record.otp, payload.otp):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid verification code."
+            )
+            
+        # Find user and update password
+        user = db.query(DBUser).filter(DBUser.email == payload.email).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found."
+            )
+            
+        user.password_hash = hash_password(payload.new_password)
+        db.delete(reset_record)
+        db.commit()
+        
+        logger.info(f"Password reset successfully for email: {payload.email}")
+        return {"success": True, "message": "Password has been successfully reset! You can now log in."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error during reset-password request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Password reset failed: {str(e)}"
         )
     finally:
         db.close()

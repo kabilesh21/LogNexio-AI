@@ -30,3 +30,17 @@ export async function loginUser(username, password) {
     body: JSON.stringify({ username, password }),
   });
 }
+
+export async function forgotPassword(email) {
+  return apiFetch('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(email, otp, newPassword) {
+  return apiFetch('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp, new_password: newPassword }),
+  });
+}

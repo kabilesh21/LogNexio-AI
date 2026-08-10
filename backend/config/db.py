@@ -70,6 +70,13 @@ class DBUser(Base):
     email = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class DBPasswordReset(Base):
+    __tablename__ = "password_resets"
+    email = Column(String(255), primary_key=True, index=True)
+    otp = Column(String(6), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 
