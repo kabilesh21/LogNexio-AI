@@ -11,8 +11,8 @@ async function apiFetch(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-    throw new Error(body.detail || `HTTP ${res.status}`);
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || body.detail || `HTTP ${res.status}`);
   }
   return res.json();
 }
