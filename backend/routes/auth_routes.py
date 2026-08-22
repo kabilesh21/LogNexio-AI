@@ -134,15 +134,15 @@ def login_user(payload: UserLoginRequest):
         ).first()
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Username not found."
             )
             
         # Verify password
         if not verify_password(payload.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password."
+                detail="Incorrect password."
             )
             
         logger.info(f"User {payload.username} logged in successfully.")
