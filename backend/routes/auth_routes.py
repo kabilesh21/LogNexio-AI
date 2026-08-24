@@ -184,8 +184,11 @@ def forgot_password(payload: ForgotPasswordRequest):
     logger.info(f"Received forgot password request for email: {payload.email}")
     db = SessionLocal()
     try:
-        # Check if user exists with this email
-        user = db.query(DBUser).filter(DBUser.email == payload.email).first()
+        # Check if user exists with this email or username
+        from sqlalchemy import or_
+        user = db.query(DBUser).filter(
+            or_(DBUser.email == payload.email, DBUser.username == payload.email)
+        ).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -270,7 +273,10 @@ def reset_password(payload: ResetPasswordRequest):
             )
             
         # Find user and update password
-        user = db.query(DBUser).filter(DBUser.email == payload.email).first()
+        from sqlalchemy import or_
+        user = db.query(DBUser).filter(
+            or_(DBUser.email == payload.email, DBUser.username == payload.email)
+        ).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
